@@ -1287,10 +1287,32 @@ class ResumeApp:
         """Main application entry point"""
         self.apply_global_styles()
         
-        # Admin login/logout in sidebar
+        # Initialize login state variables if they don't exist
+        if 'is_logged_in' not in st.session_state:
+            st.session_state.is_logged_in = False
+        if 'current_user_email' not in st.session_state:
+            st.session_state.current_user_email = None
+        
+        # Check if user is logged in
+        if not st.session_state.get('is_logged_in', False):
+            # Render login form if not logged in
+            from login_form import render_login_form
+            render_login_form()
+            return  # Stop further execution
+        
+        # If user is logged in, show the main app
         with st.sidebar:
             st_lottie(self.load_lottie_url("https://assets5.lottiefiles.com/packages/lf20_xyadoh9h.json"), height=200, key="sidebar_animation")
             st.title("All in One Smart Resume Analyzer")
+            st.markdown("---")
+            
+            # Show logged in user info
+            st.success(f"Logged in as: {st.session_state.get('current_user_email')}")
+            if st.button("Logout", key="user_logout_button"):
+                st.session_state.is_logged_in = False
+                st.session_state.current_user_email = None
+                st.rerun()
+            
             st.markdown("---")
             
             # Navigation buttons
@@ -1306,13 +1328,13 @@ class ResumeApp:
             
             # Admin Login/Logout section at bottom
             if st.session_state.get('is_admin', False):
-                st.success(f"Logged in as: {st.session_state.get('current_admin_email')}")
-                if st.button("Logout", key="logout_button"):
+                st.success(f"Admin: {st.session_state.get('current_admin_email')}")
+                if st.button("Admin Logout", key="admin_logout_button"):
                     try:
                         log_admin_action(st.session_state.get('current_admin_email'), "logout")
                         st.session_state.is_admin = False
                         st.session_state.current_admin_email = None
-                        st.success("Logged out successfully!")
+                        st.success("Admin logged out successfully!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error during logout: {str(e)}")
@@ -1320,24 +1342,18 @@ class ResumeApp:
                 with st.expander("👤 Admin Login"):
                     admin_email_input = st.text_input("Email", key="admin_email_input")
                     admin_password = st.text_input("Password", type="password", key="admin_password_input")
-                    if st.button("Login", key="login_button"):
-                            try:
-                                if verify_admin(admin_email_input, admin_password):
-                                    st.session_state.is_admin = True
-                                    st.session_state.current_admin_email = admin_email_input
-                                    log_admin_action(admin_email_input, "login")
-                                    st.success("Logged in successfully!")
-                                    st.rerun()
-                                else:
-                                    st.error("Invalid credentials")
-                            except Exception as e:
-                                st.error(f"Error during login: {str(e)}")
-        
-        # Force home page on first load
-        if 'initial_load' not in st.session_state:
-            st.session_state.initial_load = True
-            st.session_state.page = 'home'
-            st.rerun()
+                    if st.button("Login", key="admin_login_button"):
+                        try:
+                            if verify_admin(admin_email_input, admin_password):
+                                st.session_state.is_admin = True
+                                st.session_state.current_admin_email = admin_email_input
+                                log_admin_action(admin_email_input, "login")
+                                st.success("Admin logged in successfully!")
+                                st.rerun()
+                            else:
+                                st.error("Invalid admin credentials")
+                        except Exception as e:
+                            st.error(f"Error during admin login: {str(e)}")
         
         # Get current page and render it
         current_page = st.session_state.get('page', 'home')
@@ -1352,7 +1368,6 @@ class ResumeApp:
         else:
             # Default to home page if invalid page
             self.render_home()
-    
 if __name__ == "__main__":
     app = ResumeApp()
     app.main()
